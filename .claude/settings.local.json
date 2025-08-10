@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(source:*)",
+      "Bash(pip install:*)",
+      "Bash(django-admin startproject:*)",
+      "Bash(python manage.py startapp:*)",
+      "Bash(mkdir:*)",
+      "Bash(docker-compose up:*)",
+      "Bash(python manage.py:*)",
+      "Bash(docker-compose:*)",
+      "Bash(python:*)",
+      "Bash(curl:*)",
+      "Bash(rm:*)"
+    ],
+    "deny": []
+  }
+}
