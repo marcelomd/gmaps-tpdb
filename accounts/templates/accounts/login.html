@@ -1,0 +1,26 @@
+{% extends 'accounts/base.html' %}
+
+{% block title %}Login - Account Management{% endblock %}
+
+{% block content %}
+<h2>Login</h2>
+
+<form method="post">
+    {% csrf_token %}
+    
+    <div class="form-group">
+        <label for="email">Email:</label>
+        <input type="email" id="email" name="email" required>
+    </div>
+
+    <div class="form-group">
+        <label for="password">Password:</label>
+        <input type="password" id="password" name="password" required>
+    </div>
+
+    <button type="submit">Login</button>
+</form>
+
+<p><a href="{% url 'register' %}">Don't have an account? Register here</a></p>
+<p><a href="{% url 'password_reset' %}">Forgot your password?</a></p>
+{% endblock %}

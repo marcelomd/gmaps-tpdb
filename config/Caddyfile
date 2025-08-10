@@ -1,0 +1,68 @@
+# Caddyfile for Django tpdb application - Production
+tpsdatabase.com.br {
+    # Handle static files
+    handle /static/* {
+        root * /var/www/tpdb
+        file_server
+        header Cache-Control "public, max-age=2592000"
+    }
+
+    # Handle media files
+    handle /media/* {
+        root * /var/www/tpdb
+        file_server
+        header Cache-Control "public, max-age=2592000"
+    }
+
+    # Handle favicon
+    handle /favicon.ico {
+        respond 404
+    }
+
+    # Proxy everything else to Django/Gunicorn
+    handle {
+        reverse_proxy unix//var/www/tpdb/tpdb.sock {
+            header_up Host {host}
+            header_up X-Real-IP {remote}
+        }
+    }
+    # Security headers
+    header {
+        # Enable HSTS
+        Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+        # Prevent content type sniffing
+        X-Content-Type-Options "nosniff"
+        # Enable XSS filtering
+        X-XSS-Protection "1; mode=block"
+        # Prevent clickjacking
+        X-Frame-Options "SAMEORIGIN"
+        # Referrer policy
+        Referrer-Policy "strict-origin-when-cross-origin"
+        # Content Security Policy
+        Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://code.jquery.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self'; connect-src 'self'; media-src 'self'; object-src 'none'; child-src 'none'; worker-src 'none'; frame-ancestors 'none'; form-action 'self'; base-uri 'self'; manifest-src 'self';"
+        # Remove server info
+        -Server
+    }
+
+    # Logging
+    log {
+        output file /var/log/tpdb/access.log
+        format json
+    }
+
+    # Error handling
+    handle_errors {
+        @5xx expression {http.error.status_code} >= 500
+        handle @5xx {
+            respond "Internal Server Error" 500
+        }
+
+        @4xx expression {http.error.status_code} >= 400
+        handle @4xx {
+            respond "Not Found" 404
+        }
+    }
+
+    # Enable compression
+    encode gzip
+}
