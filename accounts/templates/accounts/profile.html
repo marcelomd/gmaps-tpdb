@@ -1,0 +1,50 @@
+{% extends 'accounts/base.html' %}
+
+{% block title %}Profile - Account Management{% endblock %}
+
+{% block content %}
+<h2>Profile</h2>
+
+{% if user.is_authenticated %}
+    <div style="margin-bottom: 20px;">
+        <p><strong>Current User:</strong> {{ user.email }}</p>
+        <p><strong>Account Status:</strong> {% if user.is_confirmed %}Confirmed{% else %}Unconfirmed{% endif %}</p>
+    </div>
+
+    <form method="post">
+        {% csrf_token %}
+        
+        <div class="form-group">
+            <label for="{{ form.email.id_for_label }}">Email:</label>
+            {{ form.email }}
+            {% if form.email.errors %}
+                <div class="error">{{ form.email.errors }}</div>
+            {% endif %}
+        </div>
+
+        <div class="form-group">
+            <label for="{{ form.first_name.id_for_label }}">First Name:</label>
+            {{ form.first_name }}
+            {% if form.first_name.errors %}
+                <div class="error">{{ form.first_name.errors }}</div>
+            {% endif %}
+        </div>
+
+        <div class="form-group">
+            <label for="{{ form.last_name.id_for_label }}">Last Name:</label>
+            {{ form.last_name }}
+            {% if form.last_name.errors %}
+                <div class="error">{{ form.last_name.errors }}</div>
+            {% endif %}
+        </div>
+
+        {% if form.non_field_errors %}
+            <div class="error">{{ form.non_field_errors }}</div>
+        {% endif %}
+
+        <button type="submit">Update Profile</button>
+    </form>
+{% else %}
+    <p>You need to <a href="{% url 'login' %}">login</a> to view your profile.</p>
+{% endif %}
+{% endblock %}

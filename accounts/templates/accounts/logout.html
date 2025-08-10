@@ -1,0 +1,16 @@
+{% extends 'accounts/base.html' %}
+
+{% block title %}Logout - Account Management{% endblock %}
+
+{% block content %}
+<h2>Logout</h2>
+
+<p>Are you sure you want to logout?</p>
+
+<form method="post">
+    {% csrf_token %}
+    <button type="submit">Yes, Logout</button>
+</form>
+
+<p><a href="{% url 'profile' %}">Cancel</a></p>
+{% endblock %}

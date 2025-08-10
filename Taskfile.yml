@@ -1,0 +1,111 @@
+version: '3'
+
+tasks:
+  setup:
+    desc: "Bootstrap/setup the project (install dependencies, start db, run migrations)"
+    cmds:
+      - pip install -r requirements.txt
+      - task: db:start
+      - task: migrate
+
+  bootstrap:
+    desc: "Alias for setup task"
+    cmds:
+      - task: setup
+
+  db:start:
+    desc: "Start PostgreSQL database container"
+    cmds:
+      - docker-compose up -d
+      - echo "Waiting for database to be ready..."
+      - sleep 5
+
+  db:stop:
+    desc: "Stop PostgreSQL database container"
+    cmds:
+      - docker-compose down
+
+  db:logs:
+    desc: "View database logs"
+    cmds:
+      - docker-compose logs -f db
+
+  db:shell:
+    desc: "Connect to PostgreSQL database shell"
+    cmds:
+      - docker-compose exec db psql -U tpdb_user -d tpdb
+
+  db:drop-tables:
+    desc: "Drop all database tables (WARNING: This will delete all data)"
+    deps: [db:start]
+    cmds:
+      - docker-compose exec db psql -U tpdb_user -d tpdb -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public; GRANT ALL ON SCHEMA public TO tpdb_user; GRANT ALL ON SCHEMA public TO public;"
+      - echo "All tables and schema dropped and recreated successfully"
+
+  run:
+    desc: "Start Django development server"
+    deps: [db:start]
+    cmds:
+      - python manage.py runserver
+
+  makemigrations:
+    desc: "Create new Django migrations"
+    cmds:
+      - python manage.py makemigrations
+
+  migrate:
+    desc: "Apply all Django migrations"
+    deps: [db:start]
+    cmds:
+      - python manage.py migrate
+
+  shell:
+    desc: "Open Django shell"
+    deps: [db:start]
+    cmds:
+      - python manage.py shell
+
+  createsuperuser:
+    desc: "Create Django superuser"
+    deps: [db:start]
+    cmds:
+      - python manage.py createsuperuser
+
+  test:
+    desc: "Run Django tests"
+    deps: [db:start]
+    cmds:
+      - python manage.py test
+
+  check:
+    desc: "Run Django system checks"
+    cmds:
+      - python manage.py check
+
+  collectstatic:
+    desc: "Collect static files"
+    cmds:
+      - python manage.py collectstatic --noinput
+
+  import:
+    desc: "Import data from Excel file into database"
+    deps: [db:start]
+    cmds:
+      - python manage.py import_excel --file {{.FILE}} {{.FLAGS}}
+    vars:
+      FILE: '{{.FILE | default "data.xlsx"}}'
+      FLAGS: '{{.FLAGS | default ""}}'
+
+  import:dry-run:
+    desc: "Preview Excel import without saving to database"
+    deps: [db:start]
+    cmds:
+      - python manage.py import_excel --file {{.FILE}} --model {{.MODEL}} --dry-run
+    vars:
+      FILE: '{{.FILE | default "data.xlsx"}}'
+
+  clean:
+    desc: "Clean up Docker containers and volumes"
+    cmds:
+      - docker-compose down -v
+      - docker system prune -f

@@ -1,0 +1,23 @@
+[Unit]
+Description=Gunicorn instance to serve tpdb Django application
+After=network.target
+
+[Service]
+User=tpdb
+Group=caddy
+WorkingDirectory=/var/www/tpdb
+Environment="PATH=/var/www/tpdb/venv/bin"
+Environment="DJANGO_SETTINGS_MODULE=tpdb.settings_production"
+EnvironmentFile=/var/www/tpdb/.env
+ExecStart=/var/www/tpdb/venv/bin/gunicorn --workers 1 --timeout 300 --max-requests 100 --bind unix:/var/www/tpdb/tpdb.sock tpdb.wsgi:application
+ExecReload=/bin/kill -s HUP $MAINPID
+Restart=always
+
+# Memory and resource limits
+LimitAS=2G
+LimitRSS=1G
+LimitNOFILE=65536
+LimitNPROC=32768
+
+[Install]
+WantedBy=multi-user.target
