@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Compound Database Query - TPDB</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+        
+        .user-info {
+            color: #666;
+            font-size: 14px;
+        }
+        
+        .query-section {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .form-group label {
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #2c3e50;
+        }
+        
+        .form-group select,
+        .form-group input {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        .form-group select:focus,
+        .form-group input:focus {
+            outline: none;
+            border-color: #3498db;
+            box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+        }
+        
+        .query-actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.3s;
+        }
+        
+        .btn-primary {
+            background-color: #3498db;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background-color: #2980b9;
+        }
+        
+        .btn-secondary {
+            background-color: #95a5a6;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background-color: #7f8c8d;
+        }
+        
+        .results-section {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .results-header {
+            background: #34495e;
+            color: white;
+            padding: 15px 20px;
+        }
+        
+        .results-content {
+            padding: 20px;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+        
+        .error {
+            background-color: #e74c3c;
+            color: white;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+        }
+        
+        .info {
+            background-color: #3498db;
+            color: white;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+        }
+        
+        .compound-grid {
+            display: grid;
+            gap: 15px;
+        }
+        
+        .compound-card {
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 15px;
+            transition: box-shadow 0.3s;
+        }
+        
+        .compound-card:hover {
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        
+        .compound-header {
+            display: flex;
+            justify-content: between;
+            align-items: flex-start;
+            margin-bottom: 10px;
+        }
+        
+        .compound-name {
+            font-weight: bold;
+            color: #2c3e50;
+            font-size: 16px;
+        }
+        
+        .compound-type {
+            background: #3498db;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            margin-left: auto;
+        }
+        
+        .compound-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .detail-item {
+            font-size: 14px;
+        }
+        
+        .detail-label {
+            font-weight: 500;
+            color: #666;
+        }
+        
+        .treatments {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin-top: 5px;
+        }
+        
+        .treatment-tag {
+            background: #2ecc71;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 11px;
+        }
+        
+        .molecule-image {
+            max-width: 100%;
+            height: auto;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin: 10px 0;
+            background: white;
+        }
+        
+        .molecule-section {
+            margin-top: 10px;
+        }
+        
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            margin-top: 20px;
+            padding: 20px;
+        }
+        
+        .pagination button {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            background: white;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        
+        .pagination button:hover:not(:disabled) {
+            background: #f8f9fa;
+        }
+        
+        .pagination button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        .pagination .current-page {
+            background: #3498db;
+            color: white;
+            border-color: #3498db;
+        }
+        
+        .logout-link {
+            float: right;
+            color: #e74c3c;
+            text-decoration: none;
+            font-size: 14px;
+        }
+        
+        .logout-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Compound Database Query System</h1>
+            <div class="user-info">
+                Welcome, {{ user.email }}
+                <a href="/accounts/logout/" class="logout-link">Logout</a>
+            </div>
+        </div>
+
+        <div class="query-section">
+            <h2>Query Parameters</h2>
+            <form id="queryForm">
+                {% csrf_token %}
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="compound_name">Compound Name:</label>
+                        <input type="text" id="compound_name" name="name" placeholder="Search by compound name...">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="compound_type">Compound Type:</label>
+                        <select id="compound_type" name="type">
+                            <option value="">All types</option>
+                            <option value="original">Original</option>
+                            <option value="TP">TP</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="class_select">Class:</label>
+                        <select id="class_select" name="class_id">
+                            <option value="">All classes</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="subclass_select">Subclass:</label>
+                        <select id="subclass_select" name="subclass_id">
+                            <option value="">All subclasses</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="treatment_select">Treatment:</label>
+                        <select id="treatment_select" name="treatment_id">
+                            <option value="">All treatments</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="origin_id">Origin Compound ID:</label>
+                        <input type="text" id="origin_id" name="origin_id" placeholder="UUID of origin compound...">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="page_size">Results per page:</label>
+                        <select id="page_size" name="page_size">
+                            <option value="10">10</option>
+                            <option value="20" selected>20</option>
+                            <option value="50">50</option>
+                            <option value="100">100</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="query-actions">
+                    <button type="submit" class="btn btn-primary">Search Compounds</button>
+                    <button type="button" class="btn btn-secondary" onclick="clearForm()">Clear Form</button>
+                    <button type="button" class="btn btn-secondary" onclick="loadMetadata()">Refresh Metadata</button>
+                </div>
+            </form>
+        </div>
+
+        <div class="results-section">
+            <div class="results-header">
+                <h2>Query Results</h2>
+            </div>
+            <div class="results-content" id="results">
+                <div class="info">
+                    Enter search criteria above and click "Search Compounds" to query the database.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        let currentPage = 1;
+        let currentQuery = {};
+        
+        $(document).ready(function() {
+            // Load metadata on page load
+            loadMetadata();
+            
+            // Handle form submission
+            $('#queryForm').on('submit', function(e) {
+                e.preventDefault();
+                currentPage = 1;
+                performQuery();
+            });
+            
+            // Handle class change to update subclasses
+            $('#class_select').on('change', function() {
+                updateSubclasses();
+            });
+        });
+        
+        function loadMetadata() {
+            $.ajax({
+                url: '/api/metadata/',
+                method: 'GET',
+                success: function(data) {
+                    if (data.status === 'success') {
+                        populateDropdowns(data.data);
+                    } else {
+                        showError('Failed to load metadata: ' + data.message);
+                    }
+                },
+                error: function(xhr) {
+                    showError('Error loading metadata: ' + xhr.statusText);
+                }
+            });
+        }
+        
+        function populateDropdowns(metadata) {
+            // Populate classes
+            const classSelect = $('#class_select');
+            classSelect.empty().append('<option value="">All classes</option>');
+            metadata.classes.forEach(cls => {
+                classSelect.append(`<option value="${cls.id}">${cls.name}</option>`);
+            });
+            
+            // Populate treatments  
+            const treatmentSelect = $('#treatment_select');
+            treatmentSelect.empty().append('<option value="">All treatments</option>');
+            metadata.treatments.forEach(treatment => {
+                treatmentSelect.append(`<option value="${treatment.id}">${treatment.name}</option>`);
+            });
+            
+            // Store subclasses for dynamic filtering
+            window.allSubclasses = metadata.subclasses;
+            updateSubclasses();
+            
+            // Update compound types
+            const typeSelect = $('#compound_type');
+            const currentValue = typeSelect.val();
+            typeSelect.empty().append('<option value="">All types</option>');
+            metadata.compound_types.forEach(type => {
+                const selected = type === currentValue ? 'selected' : '';
+                typeSelect.append(`<option value="${type}" ${selected}>${type}</option>`);
+            });
+        }
+        
+        function updateSubclasses() {
+            const selectedClassId = $('#class_select').val();
+            const subclassSelect = $('#subclass_select');
+            
+            subclassSelect.empty().append('<option value="">All subclasses</option>');
+            
+            if (window.allSubclasses) {
+                const filteredSubclasses = selectedClassId 
+                    ? window.allSubclasses.filter(sub => sub.class_id === selectedClassId)
+                    : window.allSubclasses;
+                    
+                filteredSubclasses.forEach(subclass => {
+                    subclassSelect.append(`<option value="${subclass.id}">${subclass.name}</option>`);
+                });
+            }
+        }
+        
+        function performQuery() {
+            // Build query parameters
+            const formData = new FormData(document.getElementById('queryForm'));
+            const params = new URLSearchParams();
+            
+            for (let [key, value] of formData.entries()) {
+                if (value && key !== 'csrfmiddlewaretoken') {
+                    params.append(key, value);
+                }
+            }
+            
+            // Add pagination
+            params.append('page', currentPage);
+            
+            currentQuery = Object.fromEntries(params.entries());
+            
+            // Show loading
+            $('#results').html('<div class="loading">Searching compounds...</div>');
+            
+            $.ajax({
+                url: '/api/compounds/?' + params.toString(),
+                method: 'GET',
+                success: function(data) {
+                    if (data.status === 'success') {
+                        displayResults(data);
+                    } else {
+                        showError('Query failed: ' + data.message);
+                    }
+                },
+                error: function(xhr) {
+                    if (xhr.status === 404) {
+                        showError('No results found for the specified criteria.');
+                    } else {
+                        showError('Query error: ' + xhr.responseText);
+                    }
+                }
+            });
+        }
+        
+        function displayResults(data) {
+            const resultsDiv = $('#results');
+            
+            if (!data.data || data.data.length === 0) {
+                resultsDiv.html('<div class="info">No compounds found matching your criteria.</div>');
+                return;
+            }
+            
+            let html = '';
+            
+            // Show query info
+            if (data.query) {
+                html += '<div class="info">';
+                html += '<strong>Applied filters:</strong> ';
+                const filters = Object.entries(data.query).map(([key, value]) => `${key}: ${value}`);
+                html += filters.join(', ');
+                html += '</div>';
+            }
+            
+            // Show pagination info
+            const pagination = data.pagination;
+            html += `<div class="info">
+                Showing ${data.data.length} of ${pagination.total} results 
+                (Page ${pagination.page} of ${pagination.total_pages})
+            </div>`;
+            
+            // Show compounds
+            html += '<div class="compound-grid">';
+            
+            data.data.forEach(compound => {
+                html += `<div class="compound-card">
+                    <div class="compound-header">
+                        <div class="compound-name">${escapeHtml(compound.name)}</div>
+                        <div class="compound-type">${compound.type}</div>
+                    </div>
+                    <div class="compound-details">
+                        <div class="detail-item">
+                            <span class="detail-label">Formula:</span> ${escapeHtml(compound.neutral_formula)}
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">m/z Ion:</span> ${escapeHtml(compound.mz_ion)}
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Class:</span> ${escapeHtml(compound.class.name)}
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Subclass:</span> ${escapeHtml(compound.subclass.name)}
+                        </div>
+                        ${compound.origin ? `<div class="detail-item">
+                            <span class="detail-label">Origin:</span> ${escapeHtml(compound.origin.name)}
+                        </div>` : ''}
+                        ${compound.smile ? `<div class="detail-item">
+                            <span class="detail-label">SMILE:</span> ${escapeHtml(compound.smile)}
+                        </div>` : ''}
+                    </div>`;
+                    
+                // Display molecule image if available
+                if (compound.molecule_image_url) {
+                    html += `<div class="molecule-section">
+                        <div class="detail-label" style="margin-bottom: 5px;">Molecular Structure:</div>
+                        <img src="${compound.molecule_image_url}" alt="Molecular structure" class="molecule-image" 
+                             title="Molecular structure of ${escapeHtml(compound.name)}">
+                    </div>`;
+                }
+                    
+                if (compound.treatments && compound.treatments.length > 0) {
+                    html += '<div class="treatments">';
+                    compound.treatments.forEach(treatment => {
+                        html += `<span class="treatment-tag">${escapeHtml(treatment.name)}</span>`;
+                    });
+                    html += '</div>';
+                }
+                
+                // Display formula/mass pairs
+                if (compound.formulas && compound.formulas.length > 0) {
+                    html += '<div class="formulas-section" style="margin-top: 10px;">';
+                    html += '<div class="detail-label" style="margin-bottom: 5px;">Formulas & m/z:</div>';
+                    html += '<div class="formulas-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 5px;">';
+                    compound.formulas.forEach(formula => {
+                        html += `<div class="formula-item" style="background: #f8f9fa; padding: 5px 8px; border-radius: 4px; font-size: 12px;">
+                            <strong>${escapeHtml(formula.formula)}</strong><br>
+                            <span style="color: #666;">m/z: ${escapeHtml(formula.mass)}</span>
+                        </div>`;
+                    });
+                    html += '</div></div>';
+                }
+                
+                html += '</div>';
+            });
+            
+            html += '</div>';
+            
+            // Add pagination controls
+            if (pagination.total_pages > 1) {
+                html += '<div class="pagination">';
+                html += `<button ${!pagination.has_previous ? 'disabled' : ''} onclick="changePage(${pagination.page - 1})">Previous</button>`;
+                
+                for (let i = Math.max(1, pagination.page - 2); i <= Math.min(pagination.total_pages, pagination.page + 2); i++) {
+                    const isCurrentPage = i === pagination.page;
+                    html += `<button class="${isCurrentPage ? 'current-page' : ''}" onclick="changePage(${i})">${i}</button>`;
+                }
+                
+                html += `<button ${!pagination.has_next ? 'disabled' : ''} onclick="changePage(${pagination.page + 1})">Next</button>`;
+                html += '</div>';
+            }
+            
+            resultsDiv.html(html);
+        }
+        
+        function changePage(page) {
+            currentPage = page;
+            performQuery();
+        }
+        
+        function showError(message) {
+            $('#results').html(`<div class="error">${escapeHtml(message)}</div>`);
+        }
+        
+        function clearForm() {
+            document.getElementById('queryForm').reset();
+            updateSubclasses();
+            $('#results').html('<div class="info">Enter search criteria above and click "Search Compounds" to query the database.</div>');
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+</html>
