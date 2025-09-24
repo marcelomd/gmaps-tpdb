@@ -10,7 +10,12 @@ DEBUG = False
 SECRET_KEY = os.environ.get("SECRET_KEY")
 
 # Update this with your actual domain
-ALLOWED_HOSTS = [os.environ.get("DOMAIN_NAME")]
+ALLOWED_HOSTS = [
+    os.environ.get("DOMAIN_NAME"),
+    "localhost",
+    "127.0.0.1",
+    "0.0.0.0",
+]
 
 # Database configuration for production
 DATABASES = {
