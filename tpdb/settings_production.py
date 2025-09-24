@@ -86,6 +86,16 @@ LOGGING = {
         "core": {
             "handlers": ["console", "file"],
             "level": "INFO",
+            "propagate": True,
+        },
+        "core.utils": {
+            "handlers": ["console", "file"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "core.management.commands": {
+            "handlers": ["console", "file"],
+            "level": "INFO",
             "propagate": False,
         },
         "gunicorn": {

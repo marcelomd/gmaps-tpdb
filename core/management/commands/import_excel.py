@@ -1,8 +1,11 @@
+import logging
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from openpyxl import load_workbook
 from core.models import Class, Subclass, Treatment, Reference, Compound, FormulaMass
 from core.utils import generate_and_save_molecule_image, ensure_media_directories
+
+logger = logging.getLogger(__name__)
 
 
 class Command(BaseCommand):
@@ -236,6 +239,7 @@ class Command(BaseCommand):
 
             # Generate and save molecule image
             if obj.smile:
+                logger.info("Calling generate_and_save_molecule_image for compound: %s", obj.name)
                 if generate_and_save_molecule_image(obj):
                     obj.save()  # Save the compound with the image
                     self.stdout.write(f"Generated molecule image for: {obj.name}")
@@ -292,6 +296,7 @@ class Command(BaseCommand):
 
             # Generate and save molecule image
             if obj.smile:
+                logger.info("Calling generate_and_save_molecule_image for compound: %s", obj.name)
                 if generate_and_save_molecule_image(obj):
                     obj.save()  # Save the compound with the image
                     self.stdout.write(f"Generated molecule image for: {obj.name}")
