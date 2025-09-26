@@ -32,9 +32,10 @@ class CompoundAdmin(admin.ModelAdmin):
 
 
 class ExcelUploadAdmin(admin.ModelAdmin):
-    list_display = ['file', 'uploaded_by', 'uploaded_at', 'status', 'records_imported']
-    list_filter = ['status', 'uploaded_at']
+    list_display = ['file', 'uploaded_by', 'uploaded_at', 'status', 'records_imported', 'clear_existing_data']
+    list_filter = ['status', 'uploaded_at', 'clear_existing_data']
     readonly_fields = ['uploaded_by', 'uploaded_at', 'status', 'records_imported', 'error_message']
+    fields = ['file', 'clear_existing_data', 'uploaded_by', 'uploaded_at', 'status', 'records_imported', 'error_message']
     
     def save_model(self, request, obj, form, change):
         if not change:
@@ -59,7 +60,10 @@ class ExcelUploadAdmin(admin.ModelAdmin):
             sys.stdout = captured_output = StringIO()
             
             try:
-                call_command('import_excel', file_path, '--clear')
+                if upload_obj.clear_existing_data:
+                    call_command('import_excel', file_path, '--clear')
+                else:
+                    call_command('import_excel', file_path)
                 output = captured_output.getvalue()
                 
                 import re

@@ -125,6 +125,7 @@ class ExcelUpload(models.Model):
     )
     records_imported = models.IntegerField("Records Imported", default=0)
     error_message = models.TextField("Error Message", blank=True, null=True)
+    clear_existing_data = models.BooleanField("Clear Existing Data", default=False, help_text="Clear all existing data before importing")
 
     class Meta:
         ordering = ["-uploaded_at"]
