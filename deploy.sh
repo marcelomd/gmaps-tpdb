@@ -123,6 +123,11 @@ python manage.py migrate --settings=$DJANGO_SETTINGS
 log "Collecting static files..."
 python manage.py collectstatic --noinput --settings=$DJANGO_SETTINGS
 
+# Setup/update cron job for Excel import processing
+log "Setting up cron job for Excel import processing..."
+CRON_JOB="* * * * * cd $PROJECT_DIR && $VENV_DIR/bin/python manage.py process_pending_imports >> /var/log/tpdb/excel_imports.log 2>&1"
+(crontab -l 2>/dev/null | grep -v "process_pending_imports" || true; echo "$CRON_JOB") | crontab -
+
 # Update file permissions (already running as tpdb user)
 log "Updating file permissions..."
 chmod -R 755 $PROJECT_DIR
