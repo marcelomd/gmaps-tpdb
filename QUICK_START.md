@@ -55,7 +55,7 @@ sudo -u tpdb /bin/bash -c "source venv/bin/activate && python manage.py migrate"
 sudo -u tpdb /bin/bash -c "source venv/bin/activate && python manage.py collectstatic --noinput"
 
 # Setup cron job for Excel import processing
-sudo -u tpdb crontab -l 2>/dev/null | { cat; echo "* * * * * cd /var/www/tpdb && /var/www/tpdb/venv/bin/python manage.py process_pending_imports >> /var/log/tpdb/excel_imports.log 2>&1"; } | sudo -u tpdb crontab -
+sudo -u tpdb crontab -l 2>/dev/null | { cat; echo "* * * * * cd /var/www/tpdb && /var/www/tpdb/venv/bin/python manage.py process_pending_imports --max-files 1 >> /var/log/tpdb/excel_imports.log 2>&1"; } | sudo -u tpdb crontab -
 
 # Setup services
 sudo cp config/tpdb.service /etc/systemd/system/
