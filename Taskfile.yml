@@ -104,6 +104,12 @@ tasks:
     vars:
       FILE: '{{.FILE | default "data.xlsx"}}'
 
+  import:process:
+    desc: "Process pending Excel imports"
+    deps: [db:start]
+    cmds:
+      - python manage.py process_pending_imports
+
   clean:
     desc: "Clean up Docker containers and volumes"
     cmds:

@@ -136,3 +136,24 @@ def clear_data():
     Reference.objects.all().delete()
     Subclass.objects.all().delete()
     Class.objects.all().delete()
+
+
+def add_user_event(user, event_type, extra_data=None):
+    """
+    Create a user event record.
+
+    Args:
+        user: User instance
+        event_type: str, one of the event type choices (e.g., 'login', 'view')
+        extra_data: dict, optional additional data to store with the event
+
+    Returns:
+        UserEvent instance
+    """
+    from core.models import UserEvent
+
+    return UserEvent.objects.create(
+        user=user,
+        event_type=event_type,
+        extra_data=extra_data or {}
+    )

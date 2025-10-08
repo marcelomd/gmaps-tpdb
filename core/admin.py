@@ -6,7 +6,7 @@ from django.contrib import messages
 from django.core.management import call_command
 from django.db import transaction
 import os
-from .models import Class, Subclass, Treatment, Reference, Compound, ExcelUpload
+from .models import Class, Subclass, Treatment, Reference, Compound, ExcelUpload, UserEvent
 
 
 class CompoundAdmin(admin.ModelAdmin):
@@ -43,9 +43,59 @@ class ExcelUploadAdmin(admin.ModelAdmin):
         super().save_model(request, obj, form, change)
 
 
+class UserEventAdmin(admin.ModelAdmin):
+    list_display = ['user_email', 'event_type', 'timestamp', 'event_details']
+    list_filter = ['event_type', 'timestamp']
+    search_fields = ['user__email']
+    readonly_fields = ['user', 'event_type', 'timestamp', 'extra_data']
+    date_hierarchy = 'timestamp'
+
+    def user_email(self, obj):
+        return obj.user.email if obj.user else "deleted user"
+    user_email.short_description = 'User'
+    user_email.admin_order_field = 'user__email'
+
+    def event_details(self, obj):
+        if not obj.extra_data:
+            return '-'
+
+        if obj.event_type == 'view':
+            page = obj.extra_data.get('page', '-')
+            url = obj.extra_data.get('url', '-')
+            return f"{page} ({url})"
+        elif obj.event_type == 'login':
+            ip = obj.extra_data.get('ip', '-')
+            return f"IP: {ip}"
+        elif obj.event_type == 'register':
+            ip = obj.extra_data.get('ip', '-')
+            return f"IP: {ip}"
+        elif obj.event_type == 'query':
+            filters = obj.extra_data.get('filters', {})
+            if filters:
+                filter_str = ', '.join([f"{k}={v}" for k, v in filters.items()])
+                return filter_str[:100]  # Truncate if too long
+            return 'No filters'
+        elif obj.event_type == 'import':
+            filename = obj.extra_data.get('filename', '-')
+            records = obj.extra_data.get('records_imported', 0)
+            cleared = obj.extra_data.get('clear_existing_data', False)
+            clear_str = " (cleared data)" if cleared else ""
+            return f"{filename}: {records} records{clear_str}"
+
+        return '-'
+    event_details.short_description = 'Details'
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
 admin.site.register(Class)
 admin.site.register(Subclass)
 admin.site.register(Treatment)
 admin.site.register(Reference)
 admin.site.register(Compound, CompoundAdmin)
 admin.site.register(ExcelUpload, ExcelUploadAdmin)
+admin.site.register(UserEvent, UserEventAdmin)

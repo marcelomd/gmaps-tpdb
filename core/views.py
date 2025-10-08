@@ -9,6 +9,7 @@ from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db.models import Q
 from .models import Compound, Class, Subclass, Treatment
+from .utils import add_user_event
 
 try:
     from rdkit import Chem
@@ -31,6 +32,11 @@ def query_view(request):
     """
     Query page for registered users to search compounds
     """
+    add_user_event(request.user, 'view', {
+        'page': 'query',
+        'url': request.build_absolute_uri(),
+        'ip': request.META.get('REMOTE_ADDR')
+    })
     return render(request, "core/query.html")
 
 
@@ -225,6 +231,10 @@ def compounds_api(request):
         # Apply all filters
         if filters:
             queryset = queryset.filter(filters).distinct()
+
+        # Log query event
+        query_params = {k: v for k, v in request.GET.items() if k not in ['page', 'page_size']}
+        add_user_event(request.user, 'query', {'filters': query_params})
 
         # Pagination
         try:

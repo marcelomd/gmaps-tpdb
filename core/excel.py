@@ -12,7 +12,7 @@ from core.models import (
     FormulaMass,
     ExcelUpload,
 )
-from core.utils import generate_and_save_molecule_image, clear_data
+from core.utils import generate_and_save_molecule_image, clear_data, add_user_event
 
 
 logger = logging.getLogger(__name__)
@@ -320,6 +320,17 @@ def process_upload(upload):
         upload.status = "completed"
         upload.error_message = None  # Clear any previous error
         upload.save()
+
+        # Log import event
+        add_user_event(
+            upload.uploaded_by,
+            'import',
+            {
+                'filename': upload.file.name,
+                'records_imported': count,
+                'clear_existing_data': upload.clear_existing_data
+            }
+        )
 
     except Exception as e:
         upload.status = "error"

@@ -5,9 +5,11 @@
 {% block content %}
 <h2>Register</h2>
 
+<p>Create your account and we'll send you a login link via email.</p>
+
 <form method="post">
     {% csrf_token %}
-    
+
     <div class="form-group">
         <label for="{{ form.email.id_for_label }}">Email:</label>
         {{ form.email }}
@@ -29,22 +31,6 @@
         {{ form.last_name }}
         {% if form.last_name.errors %}
             <div class="error">{{ form.last_name.errors }}</div>
-        {% endif %}
-    </div>
-
-    <div class="form-group">
-        <label for="{{ form.password.id_for_label }}">Password:</label>
-        {{ form.password }}
-        {% if form.password.errors %}
-            <div class="error">{{ form.password.errors }}</div>
-        {% endif %}
-    </div>
-
-    <div class="form-group">
-        <label for="{{ form.password_confirm.id_for_label }}">Confirm Password:</label>
-        {{ form.password_confirm }}
-        {% if form.password_confirm.errors %}
-            <div class="error">{{ form.password_confirm.errors }}</div>
         {% endif %}
     </div>
 

@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "sesame",
     "accounts",
     "core",
 ]
@@ -51,6 +52,7 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "sesame.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
@@ -144,3 +146,21 @@ AUTH_USER_MODEL = "accounts.CustomUser"
 LOGIN_REDIRECT_URL = "/accounts/profile/"
 LOGOUT_REDIRECT_URL = "/accounts/login/"
 LOGIN_URL = "/accounts/login/"
+
+EMAIL_BACKEND = "sendgrid_backend.SendgridBackend"
+SENDGRID_API_KEY = os.environ.get("SENDGRID_API_KEY")
+DEFAULT_FROM_EMAIL = "noreply@tpsdatabase.com.br"
+
+# SendGrid settings - disable click tracking to avoid SSL issues
+SENDGRID_TRACK_CLICKS_HTML = False
+SENDGRID_TRACK_CLICKS_PLAIN = False
+
+# Django-sesame settings
+SESAME_MAX_AGE = 3600  # Token valid for 1 hour
+SESAME_ONE_TIME = True  # One-time use tokens
+
+# Add sesame to authentication backends
+AUTHENTICATION_BACKENDS = [
+    'django.contrib.auth.backends.ModelBackend',
+    'sesame.backends.ModelBackend',
+]

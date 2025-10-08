@@ -4,3 +4,6 @@ openpyxl==3.1.5
 psycopg[binary]
 python-dotenv==1.0.0
 rdkit==2025.3.6
+sendgrid==6.11.0
+django-sendgrid-v5==1.2.3
+django-sesame==3.2

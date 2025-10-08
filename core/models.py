@@ -132,3 +132,30 @@ class ExcelUpload(models.Model):
 
     def __str__(self):
         return f"{self.file.name} - {self.status}"
+
+
+class UserEvent(models.Model):
+    id = models.UUIDField(
+        primary_key=True, default=uuid.uuid4, unique=True, editable=False
+    )
+    user = models.ForeignKey(User, verbose_name="User", on_delete=models.SET_NULL, null=True)
+    event_type = models.CharField(
+        "Event Type",
+        max_length=20,
+        choices=[
+            ("view", "View"),
+            ("login", "Login"),
+            ("register", "Register"),
+            ("query", "Query"),
+            ("import", "Import"),
+        ],
+    )
+    timestamp = models.DateTimeField("Timestamp", auto_now_add=True)
+    extra_data = models.JSONField("Extra Data", blank=True, null=True)
+
+    class Meta:
+        ordering = ["-timestamp"]
+
+    def __str__(self):
+        user_email = self.user.email if self.user else "deleted user"
+        return f"{user_email} - {self.event_type} - {self.timestamp}"
