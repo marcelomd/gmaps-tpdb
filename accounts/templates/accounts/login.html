@@ -1,4 +1,5 @@
 {% extends 'accounts/base.html' %}
+{% load honeypot %}
 
 {% block title %}Login - Account Management{% endblock %}
 
@@ -9,6 +10,7 @@
 
 <form method="post">
     {% csrf_token %}
+    {% render_honeypot_field %}
 
     <div class="form-group">
         <label for="email">Email:</label>

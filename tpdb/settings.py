@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "honeypot",
     "sesame",
     "accounts",
     "core",
@@ -164,3 +165,6 @@ AUTHENTICATION_BACKENDS = [
     'django.contrib.auth.backends.ModelBackend',
     'sesame.backends.ModelBackend',
 ]
+
+# Django-honeypot settings
+HONEYPOT_FIELD_NAME = 'password'

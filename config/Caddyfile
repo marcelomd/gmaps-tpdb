@@ -1,5 +1,14 @@
 # Caddyfile for Django tpdb application - Production
 tpsdatabase.com.br {
+    # Rate limiting - 100 requests per minute per IP
+    rate_limit {
+        zone dynamic {
+            key {remote_host}
+            events 100
+            window 1m
+        }
+    }
+
     # Handle static files
     handle /static/* {
         root * /var/www/tpdb

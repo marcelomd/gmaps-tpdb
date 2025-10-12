@@ -6,6 +6,7 @@ from django import forms
 from django.forms import ModelForm
 from django.core.mail import send_mail
 from sesame.utils import get_query_string
+from honeypot.decorators import check_honeypot
 from .models import CustomUser
 from core.utils import add_user_event
 
@@ -19,6 +20,7 @@ class UserProfileForm(ModelForm):
         model = CustomUser
         fields = ['email', 'first_name', 'last_name']
 
+@check_honeypot
 def register_view(request):
     if request.method == 'POST':
         form = UserRegistrationForm(request.POST)
@@ -75,6 +77,7 @@ def logout_view(request):
     return render(request, 'accounts/logout.html')
 
 
+@check_honeypot
 def magic_link_request(request):
     """Request a magic link to be sent via email"""
     if request.method == 'POST':
