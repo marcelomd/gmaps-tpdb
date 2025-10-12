@@ -104,10 +104,6 @@ DJANGO_SETTINGS="tpdb.settings_production"
 log "Running Django system check..."
 python manage.py check --settings=$DJANGO_SETTINGS
 
-# Check database connectivity
-log "Checking database connectivity..."
-python manage.py migrate --settings=$DJANGO_SETTINGS --check
-
 # Run database migrations
 log "Running database migrations..."
 python manage.py migrate --settings=$DJANGO_SETTINGS
