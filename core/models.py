@@ -93,8 +93,10 @@ class Compound(models.Model):
     neutral_formula = models.CharField("Neutral Formula", max_length=1024, null=False)
     mz_ion = models.CharField("m/z Ion", max_length=1024, null=False)
     smile = models.CharField("SMILE", max_length=1024, null=False)
-    molecule_image = models.ImageField("Molecule Image", upload_to="molecules/", blank=True, null=True)
-    # qsar = ???
+    molecule_image = models.ImageField(
+        "Molecule Image", upload_to="molecules/", blank=True, null=True
+    )
+    notes = models.CharField("Notes", max_length=2048, null=True)
 
     class Meta:
         ordering = ["name"]
@@ -125,7 +127,11 @@ class ExcelUpload(models.Model):
     )
     records_imported = models.IntegerField("Records Imported", default=0)
     error_message = models.TextField("Error Message", blank=True, null=True)
-    clear_existing_data = models.BooleanField("Clear Existing Data", default=False, help_text="Clear all existing data before importing")
+    clear_existing_data = models.BooleanField(
+        "Clear Existing Data",
+        default=False,
+        help_text="Clear all existing data before importing",
+    )
 
     class Meta:
         ordering = ["-uploaded_at"]
@@ -138,7 +144,9 @@ class UserEvent(models.Model):
     id = models.UUIDField(
         primary_key=True, default=uuid.uuid4, unique=True, editable=False
     )
-    user = models.ForeignKey(User, verbose_name="User", on_delete=models.SET_NULL, null=True)
+    user = models.ForeignKey(
+        User, verbose_name="User", on_delete=models.SET_NULL, null=True
+    )
     event_type = models.CharField(
         "Event Type",
         max_length=20,

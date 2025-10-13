@@ -162,9 +162,43 @@ SESAME_ONE_TIME = True  # One-time use tokens
 
 # Add sesame to authentication backends
 AUTHENTICATION_BACKENDS = [
-    'django.contrib.auth.backends.ModelBackend',
-    'sesame.backends.ModelBackend',
+    "django.contrib.auth.backends.ModelBackend",
+    "sesame.backends.ModelBackend",
 ]
 
 # Django-honeypot settings
-HONEYPOT_FIELD_NAME = 'password'
+HONEYPOT_FIELD_NAME = "password"
+
+# Logging configuration
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {
+            "format": "{levelname} {asctime} {module} {process:d} {thread:d} {message}",
+            "style": "{",
+        },
+        "simple": {
+            "format": "{levelname} {message}",
+            "style": "{",
+        },
+    },
+    "handlers": {
+        "console": {
+            "level": "INFO",
+            "class": "logging.StreamHandler",
+            "formatter": "verbose",
+        },
+    },
+    "root": {
+        "level": "INFO",
+        "handlers": ["console"],
+    },
+    "loggers": {
+        "django": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+    },
+}

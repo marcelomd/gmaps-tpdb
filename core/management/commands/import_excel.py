@@ -36,9 +36,9 @@ class Command(BaseCommand):
 
         if clear_data:
             logger.warning(self.style.WARNING("Clearing all data"))
-            clear_data()
+            excel.clear_data()
 
-        if self.skip_images:
+        if skip_images:
             logger.warning(self.style.WARNING("Skipping molecule image generation"))
 
         # Ensure media directories exist
