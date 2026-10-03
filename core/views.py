@@ -26,6 +26,14 @@ COMPOUND_FILTERS = [
 ]
 
 
+FILTER_PARAMS = {
+    param
+    for id_param, _, name_param, _, _ in COMPOUND_FILTERS
+    for param in (id_param, name_param)
+    if param
+} | {"type", "name", "compound_id"}
+
+
 def is_uuid(value):
     try:
         uuid.UUID(value)
@@ -183,10 +191,11 @@ def compounds_api(request):
             # Filtering across the treatment M2M can repeat rows
             queryset = queryset.filter(filters).distinct()
 
+        # Only known parameters, capped, so the audit log can't be stuffed with arbitrary input
         applied_filters = {
-            key: value
+            key: value[:200]
             for key, value in request.GET.items()
-            if key not in ["page", "page_size"] and value
+            if key in FILTER_PARAMS and value
         }
         add_user_event(request.user, 'query', {'filters': applied_filters})
 

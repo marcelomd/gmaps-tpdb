@@ -50,6 +50,11 @@ Update the following placeholders in your configuration files:
    sudo systemctl start caddy
    ```
 
+7. **Rotate the cron and deploy logs:**
+   ```bash
+   sudo cp config/tpdb-logrotate /etc/logrotate.d/tpdb
+   ```
+
 ## 3. Environment Variables
 
 Set these environment variables in your production environment:

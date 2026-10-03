@@ -146,29 +146,49 @@ def is_positive(mode):
 
 
 def import_compound(r, columns, lookups, *, type, origin, skip_images):
-    """Get or create one compound from a row; returns (compound, created, records_created)"""
+    """Create or update one compound from a row; returns (compound, created, records_created)
+
+    A compound is identified by (origin, name, mode), so re-importing a corrected
+    sheet updates the existing row instead of adding a duplicate.
+    """
     name = field(r, columns.name)
-    obj, created = Compound.objects.get_or_create(
-        origin=origin,
-        clas=lookups.classes[field(r, columns.clas)],
-        subclass=lookups.subclasses[field(r, columns.subclass)],
-        type=type,
-        mode=is_positive(field(r, columns.mode)),
-        name=name,
-        neutral_formula=r[columns.neutral] or "",
-        mz_ion=str(r[columns.mz]) if r[columns.mz] else "",
-        smile=r[columns.smile] or "",
-        notes=field(r, columns.notes),
+    mode = is_positive(field(r, columns.mode))
+    values = {
+        "clas": lookups.classes[field(r, columns.clas)],
+        "subclass": lookups.subclasses[
+            (field(r, columns.clas), field(r, columns.subclass))
+        ],
+        "type": type,
+        "neutral_formula": r[columns.neutral] or "",
+        "mz_ion": str(r[columns.mz]) if r[columns.mz] else "",
+        "smile": r[columns.smile] or "",
+        "notes": field(r, columns.notes),
+    }
+    obj = Compound.objects.filter(origin=origin, name=name, mode=mode).first()
+    created = obj is None
+    if created:
+        obj = Compound.objects.create(origin=origin, name=name, mode=mode, **values)
+    else:
+        if obj.smile != values["smile"] and obj.molecule_image:
+            # The stored image was drawn from the old SMILE
+            obj.molecule_image.delete(save=False)
+        for attr, value in values.items():
+            setattr(obj, attr, value)
+        obj.save()
+
+    obj.treatment.set(
+        lookups.treatments[n]
+        for n in split_list(field(r, columns.treatment))
+        if lookups.treatments.get(n)
     )
-    for treatment_name in split_list(field(r, columns.treatment)):
-        if lookups.treatments.get(treatment_name):
-            obj.treatment.add(lookups.treatments[treatment_name])
-    for reference_value in split_list(field(r, columns.reference)):
-        if lookups.references.get(reference_value):
-            obj.references.add(lookups.references[reference_value])
+    obj.references.set(
+        lookups.references[v]
+        for v in split_list(field(r, columns.reference))
+        if lookups.references.get(v)
+    )
 
     formula_mass_objects = create_formula_mass_models(r, columns)
-    obj.formulas.add(*formula_mass_objects)
+    obj.formulas.set(formula_mass_objects)
 
     if obj.smile and not skip_images and generate_and_save_molecule_image(obj):
         obj.save()
@@ -205,9 +225,10 @@ def import_excel_data(ws, skip_images=False):
                 total_count += 1
 
         s = field(r, columns.subclass)
-        if s and s not in subclasses:
+        # The same subclass name can sit under several classes
+        if s and (c, s) not in subclasses:
             obj, created = Subclass.objects.get_or_create(name=s, clas=classes[c])
-            subclasses[s] = obj
+            subclasses[(c, s)] = obj
             if created:
                 logger.info(f"Created Subclass: {obj}")
                 total_count += 1
@@ -232,10 +253,12 @@ def import_excel_data(ws, skip_images=False):
         name = field(r, columns.name)
 
         # Keyed by origin (several rows can share one parent), so the last row wins per parent
-        if field(r, columns.type) == "original":
+        # Spreadsheet capitalisation varies ("Original")
+        if field(r, columns.type).lower() == "original":
             originals[origin] = r
         else:
-            tps[name] = r
+            # The same TP can come from several parents
+            tps[(name, origin)] = r
 
     # Originals go first so TPs can point at them through the origin FK
     for origin, r in originals.items():
@@ -324,10 +347,13 @@ def import_excel(path, clear=False, skip_images=False):
                 path,
                 read_only=True,
             )
-            ws = wb.active
-            if clear:
-                clear_data()
-            count = import_excel_data(ws, skip_images)
+            try:
+                ws = wb.active
+                if clear:
+                    clear_data()
+                count = import_excel_data(ws, skip_images)
+            finally:
+                wb.close()
             logger.info(f"Imported {count} records")
             return count
 

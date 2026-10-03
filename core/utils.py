@@ -63,6 +63,9 @@ def generate_and_save_molecule_image(compound, size=(300, 200), force_regenerate
         logger.info(f"Image saved to buffer for {compound.name}")
 
         filename = f"molecule_{compound.id}.png"
+        if compound.molecule_image:
+            # Drop the old file first so the new one keeps the plain name instead of a random suffix
+            compound.molecule_image.delete(save=False)
 
         compound.molecule_image.save(
             filename,

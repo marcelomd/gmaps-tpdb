@@ -1,0 +1,9 @@
+# Install: sudo cp config/tpdb-logrotate /etc/logrotate.d/tpdb
+/var/log/tpdb/excel_imports.log /var/log/tpdb/deploy.log {
+    weekly
+    rotate 8
+    compress
+    missingok
+    notifempty
+    copytruncate
+}
