@@ -1,0 +1,47 @@
+{% extends 'accounts/base.html' %}
+{% load honeypot %}
+
+{% block title %}Register - Account Management{% endblock %}
+
+{% block content %}
+<h2>Register</h2>
+
+<p>Create your account and we'll send you a login link via email.</p>
+
+<form method="post">
+    {% csrf_token %}
+    {% render_honeypot_field %}
+
+    <div class="form-group">
+        <label for="{{ form.email.id_for_label }}">Email:</label>
+        {{ form.email }}
+        {% if form.email.errors %}
+            <div class="error">{{ form.email.errors }}</div>
+        {% endif %}
+    </div>
+
+    <div class="form-group">
+        <label for="{{ form.first_name.id_for_label }}">First Name:</label>
+        {{ form.first_name }}
+        {% if form.first_name.errors %}
+            <div class="error">{{ form.first_name.errors }}</div>
+        {% endif %}
+    </div>
+
+    <div class="form-group">
+        <label for="{{ form.last_name.id_for_label }}">Last Name:</label>
+        {{ form.last_name }}
+        {% if form.last_name.errors %}
+            <div class="error">{{ form.last_name.errors }}</div>
+        {% endif %}
+    </div>
+
+    {% if form.non_field_errors %}
+        <div class="error">{{ form.non_field_errors }}</div>
+    {% endif %}
+
+    <button type="submit">Register</button>
+</form>
+
+<p><a href="{% url 'login' %}">Already have an account? Login here</a></p>
+{% endblock %}
