@@ -22,13 +22,16 @@ class Subclass(models.Model):
     id = models.UUIDField(
         primary_key=True, default=uuid.uuid4, unique=True, editable=False
     )
-    name = models.CharField("Name", max_length=1024, unique=True, null=False)
+    name = models.CharField("Name", max_length=1024, null=False)
     clas = models.ForeignKey(
         "core.Class", verbose_name="Class", null=False, on_delete=models.CASCADE
     )
 
     class Meta:
         ordering = ["name"]
+        constraints = [
+            models.UniqueConstraint(fields=["clas", "name"], name="unique_subclass_per_class")
+        ]
 
     def __str__(self):
         return self.name

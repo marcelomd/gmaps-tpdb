@@ -4,6 +4,11 @@ on:
   push:
     branches: [ main ]
 
+# A second push must wait: two deploys at once would race on the working tree and the service
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
 jobs:
   deploy:
     runs-on: ubuntu-latest

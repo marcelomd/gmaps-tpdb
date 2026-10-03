@@ -1,5 +1,6 @@
 from django.core.management.base import BaseCommand
-from django.db import transaction
+from django.core.exceptions import ValidationError
+from django.db import models, transaction
 from core.models import Compound
 from core.utils import generate_and_save_molecule_image, ensure_media_directories
 
@@ -42,14 +43,16 @@ class Command(BaseCommand):
                         self.style.ERROR(f'Compound with ID {compound_id} not found or has no SMILE data')
                     )
                     return
-            except ValueError:
+            except ValidationError:
                 self.stdout.write(
                     self.style.ERROR(f'Invalid compound ID format: {compound_id}')
                 )
                 return
         
         if missing_only and not force:
-            queryset = queryset.filter(molecule_image='')
+            queryset = queryset.filter(
+                models.Q(molecule_image='') | models.Q(molecule_image__isnull=True)
+            )
         
         total_compounds = queryset.count()
         

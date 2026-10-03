@@ -15,6 +15,7 @@ from core.utils import add_user_event, client_ip
 logger = logging.getLogger(__name__)
 
 MAGIC_LINK_COOLDOWN_SECONDS = 60
+REGISTERED_MESSAGE = 'Registration successful! Check your email for a login link.'
 UNKNOWN_OR_SENT_MESSAGE = 'If that email is registered, you will receive a login link.'
 
 
@@ -42,16 +43,33 @@ def send_login_link(request, user, subject, intro=''):
     )
 
 
+def cooldown_elapsed(email):
+    """True at most once per MAGIC_LINK_COOLDOWN_SECONDS for an email"""
+    return cache.add(f'magic-link:{email.lower()}', 1, MAGIC_LINK_COOLDOWN_SECONDS)
+
+
 @check_honeypot
 def register_view(request):
     if request.method == 'POST':
+        email = request.POST.get('email', '').strip()
+        existing = CustomUser.objects.filter(email__iexact=email).first() if email else None
+        if existing:
+            # Same outcome as a new registration so the form can't be used to probe which emails are registered
+            if cooldown_elapsed(email):
+                try:
+                    send_login_link(request, existing, 'Your login link')
+                except Exception:
+                    logger.exception('Failed to send magic link')
+            messages.success(request, REGISTERED_MESSAGE)
+            return redirect('login')
+
         form = UserForm(request.POST)
         if form.is_valid():
             user = form.save(commit=False)
             user.set_unusable_password()  # Login is by magic link only
             user.save()
             add_user_event(user, 'register', {'ip': client_ip(request)})
-            messages.success(request, 'Registration successful! Check your email for a login link.')
+            messages.success(request, REGISTERED_MESSAGE)
 
             try:
                 send_login_link(request, user, 'Welcome! Your login link', 'Welcome to TPS Database!\n\n')
@@ -99,7 +117,7 @@ def magic_link_request(request):
 
         # Every outcome below shows the same message so the form can't be used to probe which emails are registered.
         # The throttle runs before the lookup for the same reason.
-        if not cache.add(f'magic-link:{email.lower()}', 1, MAGIC_LINK_COOLDOWN_SECONDS):
+        if not cooldown_elapsed(email):
             messages.success(request, UNKNOWN_OR_SENT_MESSAGE)
             return redirect('login')
 

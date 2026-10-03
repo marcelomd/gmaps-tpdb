@@ -83,12 +83,18 @@ WSGI_APPLICATION = "tpdb.wsgi.application"
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
+DB_PASSWORD = os.environ.get("DB_PASSWORD")
+if not DB_PASSWORD:
+    if not DEBUG:
+        raise ImproperlyConfigured("DB_PASSWORD must be set unless DEBUG is enabled")
+    DB_PASSWORD = "tpdb_password"
+
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
         "NAME": os.environ.get("DB_NAME", "tpdb"),
         "USER": os.environ.get("DB_USER", "tpdb_user"),
-        "PASSWORD": os.environ.get("DB_PASSWORD", "tpdb_password"),
+        "PASSWORD": DB_PASSWORD,
         "HOST": os.environ.get("DB_HOST", "localhost"),
         "PORT": os.environ.get("DB_PORT", "5432"),
     }

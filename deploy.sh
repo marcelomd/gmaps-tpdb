@@ -9,7 +9,9 @@ VENV_DIR="$PROJECT_DIR/venv"
 USER="tpdb"
 GROUP="caddy"
 BACKUP_DIR="/var/backups/tpdb"
-TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+# Code only: media and the venv are large, and restoring old media would discard newer uploads
+BACKUP_EXCLUDES=(--exclude=./venv --exclude=./media --exclude=./.git)
+BACKUP_DONE=false
 
 # Logging function
 log() {
@@ -21,11 +23,12 @@ handle_error() {
     log "ERROR: Deployment failed at line $1"
     log "Rolling back to previous version if backup exists..."
 
-    if [ -d "$BACKUP_DIR/latest" ]; then
+    # Before this deploy's backup exists, "latest" is an older deploy's code
+    if [ "$BACKUP_DONE" = true ]; then
         log "Restoring from backup..."
         cp -r "$BACKUP_DIR/latest/"* "$PROJECT_DIR/" || true
         sudo /bin/systemctl restart tpdb || true
-        log "Rollback attempted. Please check manually."
+        log "Rollback attempted. Code only: migrations that already ran are NOT undone. Please check manually."
     fi
 
     exit 1
@@ -66,7 +69,8 @@ if [ -d "$BACKUP_DIR/latest" ]; then
     mv "$BACKUP_DIR/latest" "$BACKUP_DIR/previous"
 fi
 mkdir -p "$BACKUP_DIR/latest"
-cp -r $PROJECT_DIR/* "$BACKUP_DIR/latest/" 2>/dev/null || true
+tar -C "$PROJECT_DIR" "${BACKUP_EXCLUDES[@]}" -cf - . | tar -C "$BACKUP_DIR/latest" -xf -
+BACKUP_DONE=true
 
 # Check Git repository status
 log "Checking Git repository status..."
@@ -132,6 +136,8 @@ CRON_JOB="* * * * * cd $PROJECT_DIR && $VENV_DIR/bin/python manage.py process_pe
 log "Updating file permissions..."
 chmod -R 755 $PROJECT_DIR
 chmod 600 $PROJECT_DIR/.env 2>/dev/null || true
+# Uploads and images are only read by gunicorn and cron (both run as $USER)
+chmod 700 $PROJECT_DIR/media 2>/dev/null || true
 
 # Test Django application
 log "Testing Django application..."
@@ -156,16 +162,17 @@ fi
 # Test application response
 log "Testing application response..."
 if command -v curl &> /dev/null; then
-    if ! curl -f -s -o /dev/null --unix-socket /var/www/tpdb/tpdb.sock http://localhost/; then
+    # Pretend to be the proxy, otherwise SECURE_SSL_REDIRECT answers 301 and no view ever runs
+    if ! curl -f -s -o /dev/null -H "X-Forwarded-Proto: https" --unix-socket /var/www/tpdb/tpdb.sock http://localhost/; then
         log "WARNING: Application health check failed"
     else
         log "Application health check passed"
     fi
 fi
 
-# Restart Caddy
-log "Restarting Caddy..."
-sudo /bin/systemctl restart caddy
+# Reload Caddy (graceful, keeps connections open)
+log "Reloading Caddy..."
+sudo /bin/systemctl reload caddy
 
 # Wait for Caddy to start
 sleep 3
@@ -175,10 +182,6 @@ if ! sudo /bin/systemctl is-active --quiet caddy; then
     sudo /bin/systemctl status caddy
     exit 1
 fi
-
-# Clean up old backups (keep last 5) - tpdb owns backup dir, no sudo needed
-log "Cleaning up old backups..."
-find $BACKUP_DIR -maxdepth 1 -type d -name "backup_*" | sort -r | tail -n +6 | xargs rm -rf
 
 log "Deployment completed successfully at $(date)"
 log "Application is running on: https://tpsdatabase.com.br"

@@ -46,3 +46,32 @@ class MagicLinkTests(TestCase):
         link = mail.outbox[0].body.split("log in: ")[1].split()[0]
         self.client.get(link.replace("https://example.test", ""))
         self.assertIn("_auth_user_id", self.client.session)
+
+
+@override_settings(SITE_URL="https://example.test", EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
+class RegisterTests(TestCase):
+    def setUp(self):
+        cache.clear()
+        CustomUser.objects.create_user("known@example.com")
+
+    def register(self, email):
+        return self.client.post(
+            reverse("register"),
+            {"email": email, "first_name": "A", "last_name": "B", "password": ""},
+            follow=True,
+        )
+
+    def test_existing_email_gets_the_same_response_as_a_new_one(self):
+        known = self.register("known@example.com")
+        new = self.register("new@example.com")
+        self.assertEqual(
+            [str(m) for m in known.context["messages"]],
+            [str(m) for m in new.context["messages"]],
+        )
+        self.assertEqual(CustomUser.objects.filter(email__iexact="known@example.com").count(), 1)
+
+    def test_login_is_recorded(self):
+        from core.models import UserEvent
+
+        self.client.force_login(CustomUser.objects.get())
+        self.assertEqual(UserEvent.objects.filter(event_type="login").count(), 1)

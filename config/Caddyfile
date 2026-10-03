@@ -1,3 +1,8 @@
+# rate_limit is a third-party module (github.com/mholt/caddy-ratelimit); Caddy must be built with it
+{
+    order rate_limit before basicauth
+}
+
 # Caddyfile for Django tpdb application - Production
 tpsdatabase.com.br {
     # Rate limiting - 100 requests per minute per IP

@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.http import JsonResponse
 from django.urls import path
-from .models import Class, Subclass, Treatment, Reference, Compound, ExcelUpload, UserEvent
+from .models import Class, Subclass, Treatment, Reference, Compound, FormulaMass, ExcelUpload, UserEvent
 
 
 class CompoundAdmin(admin.ModelAdmin):
@@ -14,6 +14,18 @@ class CompoundAdmin(admin.ModelAdmin):
             kwargs["queryset"] = Compound.objects.filter(origin=None)
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
     
+    def delete_model(self, request, obj):
+        super().delete_model(request, obj)
+        self.remove_orphan_formulas()
+
+    def delete_queryset(self, request, queryset):
+        super().delete_queryset(request, queryset)
+        self.remove_orphan_formulas()
+
+    def remove_orphan_formulas(self):
+        # FormulaMass rows are shared between compounds, so they only go once nothing uses them
+        FormulaMass.objects.filter(compound__isnull=True).delete()
+
     def get_urls(self):
         urls = super().get_urls()
         custom_urls = [
