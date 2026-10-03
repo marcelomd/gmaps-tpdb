@@ -1,0 +1,78 @@
+# Caddyfile for Django tpdb application - Production
+tpsdatabase.com.br {
+    # Rate limiting - 100 requests per minute per IP
+    rate_limit {
+        zone dynamic {
+            key {remote_host}
+            events 100
+            window 1m
+        }
+    }
+
+    # Each POST to these sends an email, so cap it far below the global limit
+    @mail_sending {
+        method POST
+        path /accounts/login/ /accounts/register/
+    }
+    rate_limit @mail_sending {
+        zone mail_sending {
+            key {remote_host}
+            events 5
+            window 1m
+        }
+    }
+
+    handle /static/* {
+        root * /var/www/tpdb
+        file_server
+        header Cache-Control "public, max-age=2592000"
+    }
+
+    # No favicon is shipped; answer here instead of hitting Django
+    handle /favicon.ico {
+        respond 404
+    }
+
+    # Proxy everything else to Django/Gunicorn
+    handle {
+        reverse_proxy unix//var/www/tpdb/tpdb.sock {
+            header_up Host {host}
+            header_up X-Real-IP {remote_host}
+        }
+    }
+    # Security headers
+    header {
+        Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+        X-Content-Type-Options "nosniff"
+        X-XSS-Protection "1; mode=block"
+        X-Frame-Options "SAMEORIGIN"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://code.jquery.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self'; connect-src 'self'; media-src 'self'; object-src 'none'; child-src 'none'; worker-src 'none'; frame-ancestors 'none'; form-action 'self'; base-uri 'self'; manifest-src 'self';"
+        -Server
+    }
+
+    log {
+        output file /var/log/tpdb/access.log
+        # Keep one-time login tokens out of the logs
+        format filter {
+            wrap json
+            request>uri query {
+                delete sesame
+            }
+        }
+    }
+
+    handle_errors {
+        @5xx expression {http.error.status_code} >= 500
+        handle @5xx {
+            respond "Internal Server Error" 500
+        }
+
+        @4xx expression {http.error.status_code} >= 400
+        handle @4xx {
+            respond "Not Found" 404
+        }
+    }
+
+    encode gzip
+}
