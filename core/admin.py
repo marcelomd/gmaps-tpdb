@@ -1,7 +1,93 @@
-from django.contrib import admin
+from django.contrib import admin, messages
 from django.http import JsonResponse
+from django.utils.html import format_html_join
+from django.template.response import TemplateResponse
 from django.urls import path
-from .models import Class, Subclass, Treatment, Reference, Compound, FormulaMass, ExcelUpload, UserEvent
+from .merge import merge_entries
+from .models import (
+    Class,
+    ClassAlias,
+    Compound,
+    ExcelUpload,
+    FormulaMass,
+    Reference,
+    Subclass,
+    SubclassAlias,
+    Treatment,
+    TreatmentAlias,
+    UserEvent,
+)
+from .resolve import ImportReport
+
+
+class MergeableAdmin(admin.ModelAdmin):
+    """Adds a "merge selected" action for entries that mean the same thing"""
+
+    kind = None
+    search_fields = ["name"]
+    actions = ["merge_selected"]
+
+    @admin.action(description="Merge selected entries into one")
+    def merge_selected(self, request, queryset):
+        entries = list(queryset)
+        if len(entries) < 2:
+            self.message_user(request, "Select at least two entries to merge.", messages.WARNING)
+            return None
+        if self.kind == "subclass" and len({e.clas_id for e in entries}) > 1:
+            self.message_user(
+                request, "Subclasses can only be merged within the same class.", messages.ERROR
+            )
+            return None
+
+        if request.POST.get("confirm_merge"):
+            keep = next((e for e in entries if str(e.pk) == request.POST.get("keep")), None)
+            if keep is None:
+                self.message_user(request, "Choose the entry to keep.", messages.ERROR)
+                return None
+            merged = merge_entries(self.kind, keep, entries)
+            self.message_user(request, f'Merged {merged} into "{keep.name}".', messages.SUCCESS)
+            return None
+
+        context = {
+            **self.admin_site.each_context(request),
+            "title": "Merge entries",
+            "entries": entries,
+            "selected": [str(e.pk) for e in entries],
+            "back_url": request.get_full_path(),
+        }
+        return TemplateResponse(request, "admin/core/merge_entries.html", context)
+
+
+class ClassAliasInline(admin.TabularInline):
+    model = ClassAlias
+    extra = 0
+
+
+class SubclassAliasInline(admin.TabularInline):
+    model = SubclassAlias
+    extra = 0
+
+
+class TreatmentAliasInline(admin.TabularInline):
+    model = TreatmentAlias
+    extra = 0
+
+
+class ClassAdmin(MergeableAdmin):
+    kind = "class"
+    inlines = [ClassAliasInline]
+
+
+class SubclassAdmin(MergeableAdmin):
+    kind = "subclass"
+    list_display = ["name", "clas"]
+    list_filter = ["clas"]
+    inlines = [SubclassAliasInline]
+
+
+class TreatmentAdmin(MergeableAdmin):
+    kind = "treatment"
+    inlines = [TreatmentAliasInline]
 
 
 class CompoundAdmin(admin.ModelAdmin):
@@ -42,8 +128,16 @@ class CompoundAdmin(admin.ModelAdmin):
 class ExcelUploadAdmin(admin.ModelAdmin):
     list_display = ['file', 'uploader', 'uploaded_at', 'status', 'records_imported', 'clear_existing_data']
     list_filter = ['status', 'uploaded_at', 'clear_existing_data']
-    readonly_fields = ['uploaded_by', 'former_user_email', 'former_user_name', 'uploaded_at', 'status', 'records_imported', 'error_message']
-    fields = ['file', 'clear_existing_data', 'uploaded_by', 'former_user_email', 'former_user_name', 'uploaded_at', 'status', 'records_imported', 'error_message']
+    readonly_fields = ['uploaded_by', 'former_user_email', 'former_user_name', 'uploaded_at', 'status', 'records_imported', 'error_message', 'review']
+    fields = ['file', 'clear_existing_data', 'uploaded_by', 'former_user_email', 'former_user_name', 'uploaded_at', 'status', 'records_imported', 'error_message', 'review']
+
+    def review(self, obj):
+        # New names created by the import, and which of them look like existing ones
+        if not obj.report:
+            return '-'
+        lines = ImportReport(**obj.report).summary_lines()
+        return format_html_join('', '<div>{}</div>', ((line,) for line in lines)) or 'Nothing new'
+    review.short_description = 'Needs review'
 
     def uploader(self, obj):
         return obj.user_label(obj.uploaded_by)
@@ -100,9 +194,9 @@ class UserEventAdmin(admin.ModelAdmin):
         return False
 
 
-admin.site.register(Class)
-admin.site.register(Subclass)
-admin.site.register(Treatment)
+admin.site.register(Class, ClassAdmin)
+admin.site.register(Subclass, SubclassAdmin)
+admin.site.register(Treatment, TreatmentAdmin)
 admin.site.register(Reference)
 admin.site.register(Compound, CompoundAdmin)
 admin.site.register(ExcelUpload, ExcelUploadAdmin)

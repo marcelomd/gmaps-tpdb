@@ -2,6 +2,7 @@ import logging
 from django.core.management.base import BaseCommand, CommandError
 from core.utils import ensure_media_directories
 from core import excel
+from core.resolve import ImportReport
 
 logger = logging.getLogger(__name__)
 
@@ -28,12 +29,15 @@ class Command(BaseCommand):
 
         ensure_media_directories()
 
+        report = ImportReport()
         try:
             imported_count = excel.import_excel(
-                options["file_path"], options["clear"], options["skip_images"]
+                options["file_path"], options["clear"], options["skip_images"], report
             )
         except Exception as e:
             raise CommandError(f"Error importing data: {e}")
         logger.info(
             self.style.SUCCESS(f"Successfully imported {imported_count} total records")
         )
+        for line in report.summary_lines():
+            self.stdout.write(self.style.WARNING(f"Review: {line}"))

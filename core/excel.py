@@ -4,14 +4,13 @@ from dataclasses import dataclass
 from openpyxl import load_workbook
 from django.db import transaction
 from core.models import (
-    Class,
-    Subclass,
-    Treatment,
     Reference,
     Compound,
     FormulaMass,
     ExcelUpload,
 )
+from core.normalize import clean, split_treatments
+from core.resolve import ImportReport, Vocabularies
 from core.utils import generate_and_save_molecule_image, clear_data, add_user_event
 
 
@@ -145,6 +144,34 @@ def is_positive(mode):
     return mode.lower() == "positive"
 
 
+# Type and ionization mode are closed sets, so an unknown value is an error rather than a new entry
+TYPES = {"original": "original", "tp": "TP"}
+MODES = {"positive": True, "pos": True, "negative": False, "neg": False}
+
+
+def parse_choice(value, choices, label, row_number, bad):
+    key = clean(value).casefold()
+    if key not in choices:
+        bad.setdefault(label, {}).setdefault(clean(value), []).append(row_number)
+        return None
+    return choices[key]
+
+
+def check_choices(rows, columns):
+    """Fail the whole import, naming the rows, if any type or ionization mode is unrecognised"""
+    bad = {}
+    for number, r in rows:
+        parse_choice(field(r, columns.type), TYPES, "type", number, bad)
+        parse_choice(field(r, columns.mode), MODES, "ionization mode", number, bad)
+    if bad:
+        parts = []
+        for label, values in bad.items():
+            for value, numbers in values.items():
+                shown = ", ".join(map(str, numbers[:5])) + (" …" if len(numbers) > 5 else "")
+                parts.append(f'unknown {label} "{value}" (rows {shown})')
+        raise ValueError("; ".join(parts))
+
+
 def import_compound(r, columns, lookups, *, type, origin, skip_images):
     """Create or update one compound from a row; returns (compound, created, records_created)
 
@@ -152,7 +179,7 @@ def import_compound(r, columns, lookups, *, type, origin, skip_images):
     sheet updates the existing row instead of adding a duplicate.
     """
     name = field(r, columns.name)
-    mode = is_positive(field(r, columns.mode))
+    mode = MODES[clean(field(r, columns.mode)).casefold()]
     values = {
         "clas": lookups.classes[field(r, columns.clas)],
         "subclass": lookups.subclasses[
@@ -178,7 +205,7 @@ def import_compound(r, columns, lookups, *, type, origin, skip_images):
 
     obj.treatment.set(
         lookups.treatments[n]
-        for n in split_list(field(r, columns.treatment))
+        for n in split_treatments(field(r, columns.treatment))
         if lookups.treatments.get(n)
     )
     obj.references.set(
@@ -198,8 +225,18 @@ def import_compound(r, columns, lookups, *, type, origin, skip_images):
     return obj, created, len(formula_mass_objects) + (1 if created else 0)
 
 
-def import_excel_data(ws, skip_images=False):
+def import_excel_data(ws, skip_images=False, report=None):
     columns = get_columns(ws)
+    report = report if report is not None else ImportReport()
+    vocabularies = Vocabularies(report)
+
+    rows = [
+        (number, r)
+        for number, r in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2)
+        # Column A empty means a blank/trailing row
+        if r[0] is not None
+    ]
+    check_choices(rows, columns)
 
     classes = {}
     subclasses = {}
@@ -211,35 +248,28 @@ def import_excel_data(ws, skip_images=False):
     total_count = 0
     lookups = Lookups(classes, subclasses, treatments, references)
 
-    for r in ws.iter_rows(min_row=2, values_only=True):
-        # Column A empty means a blank/trailing row
-        if r[0] is None:
-            continue
+    def created_count():
+        return sum(len(names) for names in report.created.values())
 
+    for _, r in rows:
+        before = created_count()
+
+        # Lookups are cached by the spelling used in the sheet; the vocabularies map every
+        # spelling of a name to one entry
         c = field(r, columns.clas)
         if c and c not in classes:
-            obj, created = Class.objects.get_or_create(name=c)
-            classes[c] = obj
-            if created:
-                logger.info(f"Created Class: {obj}")
-                total_count += 1
+            classes[c] = vocabularies.clas(c)
 
         s = field(r, columns.subclass)
         # The same subclass name can sit under several classes
         if s and (c, s) not in subclasses:
-            obj, created = Subclass.objects.get_or_create(name=s, clas=classes[c])
-            subclasses[(c, s)] = obj
-            if created:
-                logger.info(f"Created Subclass: {obj}")
-                total_count += 1
+            subclasses[(c, s)] = vocabularies.subclass(classes[c], s)
 
-        for treatment_name in split_list(field(r, columns.treatment)):
+        for treatment_name in split_treatments(field(r, columns.treatment)):
             if treatment_name not in treatments:
-                obj, created = Treatment.objects.get_or_create(name=treatment_name)
-                treatments[treatment_name] = obj
-                if created:
-                    logger.info(f"Created Treatment: {obj}")
-                    total_count += 1
+                treatments[treatment_name] = vocabularies.treatment(treatment_name)
+
+        total_count += created_count() - before
 
         for reference_value in split_list(field(r, columns.reference)):
             if reference_value not in references:
@@ -253,8 +283,7 @@ def import_excel_data(ws, skip_images=False):
         name = field(r, columns.name)
 
         # Keyed by origin (several rows can share one parent), so the last row wins per parent
-        # Spreadsheet capitalisation varies ("Original")
-        if field(r, columns.type).lower() == "original":
+        if TYPES[clean(field(r, columns.type)).casefold()] == "original":
             originals[origin] = r
         else:
             # The same TP can come from several parents
@@ -316,8 +345,12 @@ def process_upload(upload):
     upload.save()
 
     try:
-        count = import_excel(upload.file.path, upload.clear_existing_data, False)
+        report = ImportReport()
+        count = import_excel(
+            upload.file.path, upload.clear_existing_data, False, report=report
+        )
         upload.records_imported = count
+        upload.report = report.to_dict()
         upload.status = "completed"
         upload.error_message = None
         upload.save()
@@ -329,6 +362,8 @@ def process_upload(upload):
                 "filename": upload.file.name,
                 "records_imported": count,
                 "clear_existing_data": upload.clear_existing_data,
+                "new_names": sum(len(v) for v in report.created.values()),
+                "similar_names": len(report.similar),
             },
         )
 
@@ -339,7 +374,7 @@ def process_upload(upload):
         raise e
 
 
-def import_excel(path, clear=False, skip_images=False):
+def import_excel(path, clear=False, skip_images=False, report=None):
     # Atomic so a failed import after clear_data() doesn't leave the database empty
     with transaction.atomic():
         try:
@@ -351,7 +386,7 @@ def import_excel(path, clear=False, skip_images=False):
                 ws = wb.active
                 if clear:
                     clear_data()
-                count = import_excel_data(ws, skip_images)
+                count = import_excel_data(ws, skip_images, report)
             finally:
                 wb.close()
             logger.info(f"Imported {count} records")
