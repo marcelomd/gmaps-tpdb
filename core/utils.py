@@ -8,6 +8,11 @@ from core.models import Class, Subclass, Treatment, Reference, Compound, Formula
 
 logger = logging.getLogger(__name__)
 
+# Must come before rdkit.Chem.Draw: with Draw loaded first, openpyxl's import-time
+# XML parsing segfaults inside pyexpat (seen on the VPS with rdkit 2025.3.6 and
+# Fedora's python 3.13), which silently killed the import cron job.
+import openpyxl  # noqa: F401
+
 try:
     from rdkit import Chem
     from rdkit.Chem import Draw
