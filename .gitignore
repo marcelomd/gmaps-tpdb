@@ -98,3 +98,6 @@ wheels/
 .lesshst
 .ssh/
 .python_history
+
+# Spreadsheets
+*.xlsx
